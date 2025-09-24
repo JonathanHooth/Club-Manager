@@ -17,6 +17,7 @@ from django.core.exceptions import PermissionDenied
 from django.core.validators import RegexValidator, validate_email
 from django.db import models
 from django.utils import timezone
+from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 
 from core.abstracts.models import ManagerBase, ModelBase, SocialProfileBase, UniqueModel
@@ -101,6 +102,15 @@ class UserManager(BaseUserManager, ManagerBase["User"]):
             defaults = defaults or {}
             return self.create(**defaults, **kwargs), True
 
+    def find_by_email(self, email: str):
+        """Filter for user matching email, or return None."""
+
+        try:
+            user = self.get_by_email(email)
+            return user
+        except User.DoesNotExist:
+            return None
+
     def get_by_email(self, email: str):
         """Get user by their email."""
 
@@ -125,6 +135,9 @@ class User(AbstractBaseUser, PermissionsMixin, UniqueModel):
 
     clubs = models.ManyToManyField(
         "clubs.Club", through="clubs.ClubMembership", blank=True
+    )
+    teams = models.ManyToManyField(
+        "clubs.Team", through="clubs.TeamMembership", blank=True
     )
 
     cached_email = models.EmailField(
@@ -313,9 +326,11 @@ class Profile(ModelBase):
     def email(self):
         return self.user.email
 
-    @property
+    @cached_property
     def is_school_email_verified(self):
-        return self.user.verified_emails.filter(email=self.school_email).exists()
+        return any(
+            ve.email == self.school_email for ve in self.user.verified_emails.all()
+        )
 
     def __str__(self):
         return self.name or self.user.username
