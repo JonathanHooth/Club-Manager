@@ -124,7 +124,6 @@ class EventSerializer(ModelSerializerBase):
         event = Event.objects.create(**validated_data)
 
         for host in hosts_data:
-
             EventHost.objects.create(
                 event=event, club=host["club"], is_primary=host.get("is_primary", False)
             )
@@ -234,10 +233,10 @@ class EventAttendanceCsvSerializer(CsvModelSerializer):
                 start_at=start_at,
                 end_at=end_at,
             )
-        except Event.DoesNotExist:
+        except Event.DoesNotExist as e:
             raise serializers.ValidationError(
                 "Event with the given name, start_at and end_at does not exist."
-            )
+            ) from e
 
         attrs["event"] = event
         return attrs
